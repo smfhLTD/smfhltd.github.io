@@ -1,0 +1,114 @@
+--- Sedna Writeup ---
+
+Preface:
+In my studies for my OSPF+ certification, I figured I'd want to look back on the things I've learned and how my thought process improved over time.
+
+- No AI was used in the writing of this article, in the solving of this CTF or in the learning process building up to it :) 
+
+I've completed tens of CTFs/machines in different environments (sites, interviews, vulnhub machines, exams, etc.), however I'd like to start writing them up to really learn from my mistakes.
+
+--- Initial Recon ---
+
+There wasn't anything majorly exciting here as far as reconnaissance goes.
+
+To make things easier however, I manually entered the vNIC of the VM into my hosts file and used BASH looping to make ffuf's output more organised and verbose, as I found it wasn't great for keeping track of directory trees.
+
+
+- NMAP -
+Started out with your typical nmap scan: nmap -p- -sV -vv -o nmap sedna
+
+This scan didn't reveal too much, apart from the fact that I had 2 web apps to deal with on ports 80 and 8080, one being Apache Tomcat and the other being some sort of faulty outdated configuration of a CMS based application. (see image)
+
+In hindsight, I reckon I could've utilised the mail services for some sort of enumeration perhaps, I might explore it further after writing.
+
+No NSE scripts revealed any useful information, even the rpcbind service wasn't linking to any other RPC services for me to interact with, though I did learn a bit about enumerating rpcbind by itself.
+
+- ffuf -
+
+Upon visiting the first webpage on port 80, due to the fact there was no direction I could take other than recursively fuzzing the root directory, as there were no hrefs or other buttons linking to other parts of the webapp.
+
+To begin fuzzing, I used something along the lines of: 
+	$ ffuf -recursion -u $URL/FUZZ -w '$SecLists-master/Discovery/Web-Content/raft-largetext' >> output.txt 
+
+I then noticed ffuf doesn't contain full paths in its output, which left me guessing where it found which subdir, so I used some manual labor to make the output more readable, as I couldn't find a way to include this in the scan output. My command then turned into:
+
+	$ for url in `cat ./interesting_urls`; do ffuf -u $URL/FUZZ -w '$seclists/Discovery/Web-Content/raft-largetxt' >> output.txt; done
+
+After reading the results of my recursion into interesting subdirs I found in the initial fuzzing of the root directory, I found many dirs similar to the following:
+
+http://sedna.wtf/blocks/FUZZ
+________________________________________________
+
+page                    [Status: 301, Size: 317, Words: 20, Lines: 10]
+accordion               [Status: 301, Size: 322, Words: 20, Lines: 10]
+address                 [Status: 301, Size: 320, Words: 20, Lines: 10]
+button                  [Status: 301, Size: 319, Words: 20, Lines: 10]
+categories              [Status: 301, Size: 323, Words: 20, Lines: 10]
+column                  [Status: 301, Size: 319, Words: 20, Lines: 10]
+contact_form            [Status: 301, Size: 325, Words: 20, Lines: 10]
+content                 [Status: 301, Size: 320, Words: 20, Lines: 10]
+footer                  [Status: 301, Size: 319, Words: 20, Lines: 10]
+generic                 [Status: 301, Size: 320, Words: 20, Lines: 10]
+
+
+I.E, subdirectories with many subfolders, with a SYSTEMIC naming convention. This made me think there was some sort of CMS at play and after manually viewing the folders and various demo pictures it had included, it was revealed that the CMS was BuilderEngine v3.2.1. (I also utilised cutycapt to capture screenshots of the many paths I found while fuzzing to make sense of things, but the headline is the CMS identification).
+
+Before looking too deeply into these directories, I reviewed the Tomcat app and tried experimenting with it, though there was not much to experiment with, as it was a default configuration and my brute force attempts of the BASIC authentication beared no fruit. After losing interest, I came back to the port 80 app.
+
+After looking into BuilderEngine, I immediately saw the file upload vulnerability associated with version 3.5.0, however I initially chose to ignore it and try to look for a more clever way to obtain initial access. I could not find one, so eventually I caved in. The exploit simply sends a POST request with an executable PHP file in the request body to a specific path in the repository of the CMS, which was originally intended for uploading images and other graphic resources to the webapp. The POST is then responded to with the location of the uploaded file, which when accessed, executes the PHP file. 
+
+
+
+- Initial Access -
+
+I originally exploited this vulnerability by stripping the reverse shell made by Pentest Monkey (https://github.com/pentestmonkey/php-reverse-shell) of comments and newlines and sending it via burp suite to the URL, then accessing it manually.
+
+I then saw that there was a metasploit module to do exactly that, but I wouldn't use it anyway. Less learning that way.
+
+I was then dropped into a www-data shell, which gained me the 1st flag in /var/www/flag.txt.
+
+- Privilege Escalation -
+
+After getting the 1st flag, I looked at what was available in the environment. The kernel was severely outdated (3.13~) and so was sudo and other system utils, so I already knew it was going to have something to do with a kernel exploit, probably DirtyCOW. I didn't really want to just upload the exploit, compile and get root as that'd be boring, so I looked around more beforehand.
+
+Here are the vectors I've looked into:
+	- Obtained the Ubuntu release version as well as the kernel version, noticed an overlayfs exploit publicly available which allowed for copying root-owned read-only files. Unfortunately, there was no overlay-type filesystem mounted on the machine, so it wasn't exploitable.
+	- /etc/passwd showed "crackmeforpoints", "root", "mysql" and "postgresql" as other interesting users, though none apart from root had any interesting files in their home directories and even that one was for AFTER escalating my privileges later on.
+	- Tried $ find / -perm 4000 2>/dev/null to look for potential SUID exploitable binaries.
+	- After looking around for a while, I couldn't find any files I could interact with that could indicate a PE vector. The interesting tomcat files were all unreadable by www-data, so I knew that was a deadend. 
+	- After searching manually, I uploaded linpeas.sh into /tmp with netcat. Linpeas showed me many more interesting files, including DNS zone files, various .bashrcs and .profiles of potential home directories, samba configuration files which I found out were purposefully modified by the administrator by reading them and comparing their default security parameters, such as the 'server role' parameter, log files that were readable and unreadable, the PHP configuration file, the postgresql & mysql configuration file and many more dummy files.
+	All of these files I manually inspected and researched in the hopes of finding an alternative to DirtyCOW.
+
+Eventually, I was disappointed to realise there was no other way that met the eye and caved in to exploit-db. I first looked into the overlayfs exploit seen here (https://www.exploit-db.com/exploits/37293), but as mentioned above, that was inexploitable due to the absence of overlay filesystems haveing been mounted.
+
+I then looked into the varied DirtyCOW exploits out there, such as the /etc/passwd method, the write access to readonly files method and then the SUID method, which ended up being the most relevant. 
+
+Anyway... tl;dr: upload the exploit, compile with off-the-land gcc and a pre-included x32 msfvenom payload for executing /bin/bash and boom... you've got root... :/.
+
+Found the flag in /root/flag.txt, as well as an installation of chkrootkit and the BuilderEngine zipped repository for whatever reason; dev could've removed 'em to make the machine lighter.
+
+- Post Exploitation -
+
+After gaining root, I could read the tomat-users.xml file, which contained the tomcat manager user:passwd combo: "tomcat:submitthisforpoints", which was the 3rd flag. I then inspected the tomcat management panel and even gave myself permissions to access the host-manager panel in addition to the manager panel to see if there was anything else. 
+
+I could also read a non-standard mysql configuration file linpeas found at: /etc/mysql/debian.cnf, which contained credentials intended for scripts, that could be used for logging into the database, which had nothing interesting in it apart from a "users" table with some SHA1 hashes I also couldn't crack. Though, I highly doubt they're related to the 4th flag as they seemed to be more of a misguidance attempt, as they interacted with none of the webapps and also didn't pass through crackstation or rockyou... Dunno.
+
+This 4th flag I couldn't obtain as it was a SHA512 hash that didn't seem to be easily crackable. I tried rockyou, other DB leaks and wordlists included in SecLists, as well as ?a?a?a - ?a?a?a?a masking in hashcat, but couldn't get it. Im not big on hash cracking as I don't have a crypto mining rig I can throw at it and these things take time, though according to what I've seen, no one else has cracked it yet in the vulnhub writeups so the mystery remainz... 
+
+- Summary -
+
+I truly didn't feel any satisfaction from completing this CTF, but whatever. As long as I learned a thing or two, that's enough.
+
+Truth be told, I found myself quite disappointed with this CTF despite it being 10~ years old, as I desperately hoped it wasn't going to include a heavy reliance on CVEs and ready-made exploits, at least not for the privilege escalation part. Couldn't the dev throw in a cron job or interesting LOLBin? :(
+
+
+Thanks for reading. Finding good CTFs is a challenge, but there's always something to learn even in the easy-intermediate ones. All in all this ctf took me 2 days and around 10 hours to complete, but if I weren't stubborn... Probably 2-3 instead, though then I wouldn't have learned anything.
+
+
+
+
+
+
+
+
+P.S: as a farewell gift I nuked it with rm. gg.
