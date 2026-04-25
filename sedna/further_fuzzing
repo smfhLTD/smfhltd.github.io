@@ -1,0 +1,15 @@
+http://192.168.56.4/system/helpers
+http://192.168.56.4/system/database
+http://192.168.56.4/system/core
+http://192.168.56.4/system/libraries
+http://192.168.56.4/system/language
+http://192.168.56.4/system/fonts
+http://192.168.56.4/system/core/compat
+http://192.168.56.4/system/database/drivers
+http://192.168.56.4/system/database/drivers/sqlite
+http://192.168.56.4/system/database/drivers/odbc
+http://192.168.56.4/system/database/drivers/ibase
+http://192.168.56.4/system/database/drivers/mssql
+http://192.168.56.4/system/database/drivers/mysql
+http://192.168.56.4/system/database/drivers/oci8
+http://192.168.56.4/system/database/drivers/pdo

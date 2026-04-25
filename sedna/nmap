@@ -1,0 +1,110 @@
+# Nmap 7.80 scan initiated Sun Apr 19 18:24:54 2026 as: nmap -p- -sV -vv -o nmap sedna
+Nmap scan report for sedna (192.168.56.4)
+Host is up, received arp-response (0.000043s latency).
+Scanned at 2026-04-19 18:24:54 EEST for 14s
+Not shown: 65523 closed ports
+Reason: 65523 resets
+PORT      STATE SERVICE     REASON         VERSION
+22/tcp    open  ssh         syn-ack ttl 64 OpenSSH 6.6.1p1 Ubuntu 2ubuntu2 (Ubuntu Linux; protocol 2.0)
+53/tcp    open  domain      syn-ack ttl 64 ISC BIND 9.9.5-3 (Ubuntu Linux)
+80/tcp    open  http        syn-ack ttl 64 Apache httpd 2.4.7 ((Ubuntu))
+110/tcp   open  pop3        syn-ack ttl 64 Dovecot pop3d
+111/tcp   open  rpcbind     syn-ack ttl 64 2-4 (RPC #100000)
+| rpcinfo: 
+|   program version    port/proto  service
+|   100000  2,3,4        111/tcp   rpcbind
+|   100000  2,3,4        111/udp   rpcbind
+|   100000  3,4          111/tcp6  rpcbind
+|   100000  3,4          111/udp6  rpcbind
+|   100024  1          37220/udp6  status 
+|   100024  1          37987/tcp   status
+|   100024  1          42751/tcp6  status 
+|_  100024  1          46030/udp   status 
+
+139/tcp   open  netbios-ssn syn-ack ttl 64 Samba smbd 3.X - 4.X (workgroup: WORKGROUP)
+|_smb-print-text: false
+| smb-protocols: 
+|   dialects: 
+|     NT LM 0.12 (SMBv1) [dangerous, but default]
+|     2.02
+|     2.10
+|_    3.00
+| smb-security-mode: 
+|   account_used: guest
+|   authentication_level: user
+|   challenge_response: supported
+|_  message_signing: disabled (dangerous, but default)
+|_smb-vuln-ms10-054: false
+143/tcp   open  imap        syn-ack ttl 64 Dovecot imapd (Ubuntu)
+| BANNER: 
+| * OK [CAPABILITY IMAP4rev1 LITERAL+ SASL-IR LOGIN-REFERRALS ID ENABLE IDLE STARTTLS LOGINDISABLED] Dovecot (Ubuntu) ready.
+| a1 LOGIN username password
+| * BAD [ALERT] Plaintext authentication not allowed without SSL/TLS, but your client did it anyway. If anyone was listening, the password was exposed.
+| a1 NO [PRIVACYREQUIRED] Plaintext authentication disallowed on non-secure (SSL/TLS) connections.
+| a1 CAPABILITY
+| * CAPABILITY IMAP4rev1 LITERAL+ SASL-IR LOGIN-REFERRALS ID ENABLE IDLE STARTTLS LOGINDISABLED
+| a1 OK Pre-login capabilities listed, post-login capabilities have more.
+| OBTAINED VIA NSE: LOGIN-REFERRALS LOGINDISABLEDA0001 more SASL-IR STARTTLS LITERAL+ capabilities listed IMAP4rev1 post-login IDLE OK ID Pre-login have ENABLE
+
+445/tcp   open  netbios-ssn syn-ack ttl 64 Samba smbd 3.X - 4.X (workgroup: WORKGROUP)
+993/tcp   open  ssl/imaps?  syn-ack ttl 64
+995/tcp   open  ssl/pop3s?  syn-ack ttl 64
+8080/tcp  open  http        syn-ack ttl 64 Apache Tomcat/Coyote JSP engine 1.1
+37987/tcp open  status      syn-ack ttl 64 1 (RPC #100024)
+
+UDP SCAN:
+PORT      STATE  SERVICE    REASON
+53/udp    open   domain     udp-response ttl 64
+111/udp   open   rpcbind    udp-response ttl 64
+137/udp   open   netbios-ns udp-response ttl 64
+5353/udp  open   zeroconf   udp-response ttl 255
+
+217/udp   closed dbase      port-unreach ttl 64
+17490/udp closed unknown    port-unreach ttl 64
+17505/udp closed unknown    port-unreach ttl 64
+17845/udp closed unknown    port-unreach ttl 64
+19717/udp closed unknown    port-unreach ttl 64
+19998/udp closed unknown    port-unreach ttl 64
+20409/udp closed unknown    port-unreach ttl 64
+24594/udp closed unknown    port-unreach ttl 64
+25375/udp closed unknown    port-unreach ttl 64
+27482/udp closed unknown    port-unreach ttl 64
+27899/udp closed unknown    port-unreach ttl 64
+39723/udp closed unknown    port-unreach ttl 64
+39888/udp closed unknown    port-unreach ttl 64
+41081/udp closed unknown    port-unreach ttl 64
+49350/udp closed unknown    port-unreach ttl 64
+51972/udp closed unknown    port-unreach ttl 64
+
+
+nmap -sU -p 46030,37220,111 --script=rpc* 192.168.56.4
+
+PORT      STATE         SERVICE
+111/udp   open          rpcbind
+| rpcinfo: 
+|   program version    port/proto  service
+|   100000  2,3,4        111/tcp   rpcbind
+|   100000  2,3,4        111/udp   rpcbind
+|   100000  3,4          111/tcp6  rpcbind
+|   100000  3,4          111/udp6  rpcbind
+|   100024  1          37220/udp6  status
+|   100024  1          37987/tcp   status
+|   100024  1          42751/tcp6  status
+|_  100024  1          46030/udp   status
+37220/udp closed        unknown
+
+nmap -p37987,111 --script=rpc* 192.168.56.4
+
+PORT      STATE SERVICE
+111/tcp   open  rpcbind
+| rpcinfo: 
+|   program version    port/proto  service
+|   100000  2,3,4        111/tcp   rpcbind
+|   100000  2,3,4        111/udp   rpcbind
+|   100000  3,4          111/tcp6  rpcbind
+|   100000  3,4          111/udp6  rpcbind
+|   100024  1          37220/udp6  status
+|   100024  1          37987/tcp   status
+|   100024  1          42751/tcp6  status
+|_  100024  1          46030/udp   status
+37987/tcp open  status
